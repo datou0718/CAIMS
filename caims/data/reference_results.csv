@@ -1,0 +1,7 @@
+dataset,benchmark,encoder,bits,array_width,k,T_filter,T_select,hit_rate_at_100_percent,mean_result_count,T_select_DASS,dass_calibration_mean_result_count,table_iii_hit_rate_at_100_percent
+scifact,BEIR,BGE,3,24,100,-100,80,95.00,100.14,84,99.94,95.0
+scidocs,BEIR,BGE,3,24,100,-92,84,88.80,100.53,84,99.89,88.8
+quora,BEIR,BGE,3,24,100,-84,84,99.89,99.31,81,100.01,99.9
+nq,BEIR,BGE,3,24,100,-100,78,92.00,98.30,80,100.03,92.0
+nq-large,DPR,BGE,3,24,100,-84,74,88.20,100.46,51,99.87,88.2
+tqa,DPR,BGE,3,24,100,-84,60,83.96,100.49,51,99.87,84.0

@@ -1,0 +1,8 @@
+numpy==2.5.3
+torch==2.14.1
+sentence-transformers==6.1.0
+beir==2.2.0
+faiss-cpu==1.15.1
+regex==2026.9.29
+tqdm==4.70.1
+pyahocorasick==2.3.1

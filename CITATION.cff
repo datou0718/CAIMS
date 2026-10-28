@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "Please cite this software when using this implementation."
+type: software
+title: "CAIMS: Scalable Cross-Array In-Memory Search"
+authors:
+  - name: "CAIMS contributors"
+version: 0.1.0
+date-released: 2026-10-27
+license: MIT
+abstract: "Software implementation of DASS, one-time ORCA adaptation, and functional LAST selection, with data preparation and accuracy evaluation."

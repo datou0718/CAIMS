@@ -1,0 +1,4 @@
+include LICENSE README.md CITATION.cff requirements.txt constraints.txt .gitignore
+recursive-include caims/data *.csv
+recursive-include tests *.py
+recursive-include .github/workflows *.yml
