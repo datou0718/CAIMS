@@ -1,82 +1,73 @@
-# CAIMS: Scalable Cross-Array In-Memory Search
+# CAIMS
 
-Python simulation of CAIMS for scalable cross-array top-k similarity search.
+Python simulation of **CAIMS: Scalable Cross-Array In-Memory Search**.
+
+Includes DASS, ORCA, and LAST, with calibrated search parameters for six datasets.
 
 ## Installation
 
-Requires Python 3.12 or later (tested with 3.14). CPU and CUDA are supported.
+Requires Python 3.12 or later (tested with 3.14). Run from the repository root:
 
-```sh
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -c constraints.txt -e .
 ```
 
-## Usage
+## Quick start
 
-Prepare vectors, select search parameters with DASS, adapt them with ORCA, and
-retrieve results with LAST. The example below uses SciFact:
-
-```sh
+```bash
 export CAIMS_DATA_ROOT="$PWD/data"
 
 caims download --dataset scifact
 caims encode --encoder BGE --dataset scifact
 caims quantize --encoder BGE --dataset scifact --bits 3
-
-caims dass --encoder BGE --dataset scifact \
-  --bits 3 --array-width 24 --k 100 --n-smp 1000 \
-  --filter-count 8 --delta 0.10 --seed 42 \
-  --output "$CAIMS_DATA_ROOT/config/scifact-dass.json"
-caims orca --config "$CAIMS_DATA_ROOT/config/scifact-dass.json" \
-  --n-online 300 --seed 42 \
-  --output "$CAIMS_DATA_ROOT/config/scifact-orca.json"
-caims last --config "$CAIMS_DATA_ROOT/config/scifact-orca.json" \
+caims paper-config --dataset scifact \
+  --output "$CAIMS_DATA_ROOT/config/scifact-ready.json"
+caims last --config "$CAIMS_DATA_ROOT/config/scifact-ready.json" \
   --output "$CAIMS_DATA_ROOT/scifact-matches.jsonl"
 ```
 
-DASS and ORCA save their parameters as JSON; LAST writes query and retrieved
-document IDs as JSONL. Keep the same `CAIMS_DATA_ROOT` across commands.
+The example prepares SciFact vectors, loads our calibrated parameters, and writes
+query and retrieved document IDs to JSONL. Downloads require internet access.
+To run on CPU, add `--devices cpu` to `encode` and `--device cpu` to `last`.
+Keep the same `CAIMS_DATA_ROOT` across commands.
 
-To run on CPU, add `--devices cpu` to `encode` and `--device cpu` to `dass`, `orca`,
-and `last`. Data preparation supports `scifact`, `scidocs`, `quora`, `nq`,
-`nq-large`, and `tqa` and requires internet access for downloads.
+## Usage
 
-## Algorithms
+After preparing vectors, call the algorithms directly to calibrate and search:
 
-- **DASS (Dataset-Assisted Scalable Search):** Uses sampled candidate vectors as
-  pseudo-queries to select the partition matching threshold `T_filter` and
-  selection rank `T_select` offline.
-- **ORCA (Online Result Count Adaptation):** Uses online queries to adapt
-  `T_select` at a fixed `T_filter`, targeting an average of `k` results. Each call
-  performs one adaptation.
-- **LAST (Local Aggregation and Selective Transfer):** Implements global selection
-  from aggregated partition match scores, retaining all candidates tied at the
-  selection cutoff. The result count can therefore differ from exactly `k`.
+```python
+from caims import dass, orca, last
+from caims.quantization import load_vectors
 
-## Search Parameters
+cand_vec, qry_vec, _, _ = load_vectors("BGE", "scifact", bits=3)
 
-| Parameter | Default | Command-line option |
-|---|---|---|
-| Encoder | BGE | `--encoder` |
-| Quantization precision | 3 bits | `--bits` |
-| CAM array width | 24 dimensions | `--array-width` |
-| Target average result count | 100 | `--k` |
-| DASS pseudo-queries | 1,000 | `--n-smp` |
-| ORCA online queries | 300 | `--n-online` |
+params = dass.select_parameters(
+    cand_vec, bits=3, array_width=24, k=100, n_smp=1000, device="cpu",
+)
+params = orca.adapt_t_select(
+    cand_vec, qry_vec[:300], params.t_filter,
+    array_width=24, k=100, device="cpu",
+)
+matches, _ = last.select_candidates(
+    cand_vec, qry_vec, params.t_filter,
+    array_width=24, t_select=params.t_select, device="cpu",
+)
+```
 
-BGE uses `BAAI/bge-base-en-v1.5` to produce normalized 768-dimensional embeddings.
-Vectors use per-vector Quantile Quantization and squared Euclidean distance.
-The default array width gives 32 partitions per vector.
+`cand_vec` and `qry_vec` are quantized NumPy arrays with one vector per row and
+matching dimensions. `matches[i]` contains candidate row indices for query `i`.
+Use `device="cuda:0"` for GPU execution.
 
-## Calibrated Parameters
+### Calibrated parameters
 
 Our parameters after DASS calibration and ORCA adaptation are included in
-[reference_results.csv](caims/data/reference_results.csv). All use BGE, 3-bit
-quantization, array width 24, and `k = 100`.
+[reference_results.csv](caims/data/reference_results.csv). All use BGE
+(`BAAI/bge-base-en-v1.5`), 3-bit Quantile Quantization, array width 24, and `k = 100`.
 
 | Dataset | T_filter | T_select after DASS | T_select after ORCA |
-|---|---:|---:|---:|
+| --- | ---: | ---: | ---: |
 | `scifact` | -100 | 84 | 80 |
 | `scidocs` | -92 | 84 | 84 |
 | `quora` | -84 | 81 | 84 |
@@ -84,14 +75,16 @@ quantization, array width 24, and `k = 100`.
 | `nq-large` | -84 | 51 | 74 |
 | `tqa` | -84 | 51 | 60 |
 
-To use the final parameters directly after preparing vectors:
+The quick start uses the final ORCA parameters. Replace `scifact` with another
+dataset name to use its parameters.
 
-```sh
-caims paper-config --dataset scifact \
-  --output "$CAIMS_DATA_ROOT/config/scifact-ready.json"
-caims last --config "$CAIMS_DATA_ROOT/config/scifact-ready.json" \
-  --output "$CAIMS_DATA_ROOT/scifact-matches.jsonl"
-```
+## Algorithms
+
+| Algorithm | Description |
+| --- | --- |
+| `DASS` | **Dataset-Assisted Scalable Search:** select `T_filter` and `T_select` offline using sampled candidates as pseudo-queries. |
+| `ORCA` | **Online Result Count Adaptation:** adapt `T_select` at a fixed `T_filter` using online queries, targeting an average of `k` results. Each call performs one adaptation. |
+| `LAST` | **Local Aggregation and Selective Transfer:** simulate global selection from aggregated partition match scores, retaining all candidates tied at the cutoff. |
 
 ## Citation
 
