@@ -89,6 +89,15 @@ dataset name to use its parameters.
 ## Citation
 
 ```bibtex
+@misc{CAIMS,
+      title={CAIMS: Scalable Cross-Array In-Memory Search}, 
+      author={Yi-Chun Liao and Liu Liu and Ruiyang Qin and Yiran Chen and X. Sharon Hu},
+      year={2026},
+      eprint={2611.25141},
+      archivePrefix={arXiv},
+      primaryClass={cs.AR},
+      url={https://arxiv.org/abs/2611.25141}, 
+}
 ```
 
 Licensed under the [MIT License](LICENSE).
